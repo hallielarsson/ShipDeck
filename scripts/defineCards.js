@@ -1,28 +1,32 @@
 //Not in use yet -- this is just the desired data spec
 
 var baseCards = {
-  "found" : {
+  "searching" : {
     name: "It's Found You!",
     description: "You can hear it breathing from the other side of the door.",
-    tags: ["bad", "monster"];
+    tags: ["bad", "monster"],
 
     userdata: { found: 0, hid: 0},
 
-    effects: async card, app => {
+    effects: async (card, app) => {
+      console.log("hello 12");
       var worryAmount = Math.ceil(Math.random() * 5);
+      console.log("hello 14");
       app.worry(worryAmount);
+      console.log("hello 16");
       await app.confirm("You can't handle this.");
-      var hid = card.get("hid");
-      var found = card.get("found");
+      console.log("hello 18");
+      var hid = card.userdata.hid;
+      var found = card.userdata.found;
       app.message("A noise from the corner distracts it.");
       await app.confirm("You take advantage of the few seconds of respite...");
       if(Math.random() < (found / (found + hid))) {
-        card.set("hid", hid + 1);
+        card.userdata.hid++;
         app.worry(2);
         app.message("The sound of its footsteps grow muffled in the distance as it stalks away ...");
         await app.confirm("... but you'll never believe it's gone.");
       } else {
-        card.set("found", found + 1);
+        card.userdata.found++;
         await app.message("It hears you move, and quickly turns around.")
         await app.effect("monsterAttack");
       }
@@ -34,7 +38,7 @@ var baseCards = {
     description: "The wound on your leg isn't healing well",
     tags: ["wound", "bad"],
     userdata : { count: 0},
-    effects: async card, app => {
+    effects: async (card, app) => {
       app.damage(1);
       var count = card.get("count");
       count++;
@@ -43,7 +47,7 @@ var baseCards = {
         await app.confirm("The loss of blood makes you weak.");
         await app.addCard("faint");
       }
-      return done;
+      return "done";
     }
   }
 };

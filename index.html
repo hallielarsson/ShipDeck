@@ -3,7 +3,7 @@
   <head>
     <script src="https://unpkg.com/vue"></script>
     <script src="https://unpkg.com/vuex@3.0.1/dist/vuex.js"></script>
-    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <!-- <link rel="stylesheet" type="text/css" href="css/style.css"> -->
   </head>
 
   <body>
@@ -11,14 +11,17 @@
       <div class="current-card" v-if="currentCard">
         <div class="name">{{ currentCard.name }}</div>
         <div class="description">{{ currentCard.description }}</div>
-        <button v-if="!currentCard.resolved" class="next" @click="cardEffectStep()">Next</button>
+        <button v-if="!resolved" class="next" @click="userConfirm()">Next</button>
+
       </div>
-      <button v-if="!currentCard || currentCard.resolved" @click="playCard()">Play</button>
+      <div class="confirm-message">
+        {{ display_message }}
+      </div>
+      <button v-if="!currentCard || resolved" @click="playCard()">Play</button>
       <div class="player-info">
-        {{ health }} {{ anxiety }}
+        Health: {{ health }} Anxiety: {{ anxiety }}
       </div>
     </div>
+    <script src="scripts/defineCards.js"></script>
     <script src="scripts/app.js"></script>
-
-
   </body>

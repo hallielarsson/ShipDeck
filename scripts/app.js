@@ -1,104 +1,9 @@
-function MakeCards() {
-  var cards = [];
-  cards.push(new Card({
-    name: "It's Found You!",
-    description: "You can feel it breathing",
-    userdata: { found: 0, hid: 0},
-    effects: [
-      function (card, app, done){
-        app.worry(Math.ceil(Math.random() * 10));
-        card.name = "It's Found You?",
-        card.description = "You can't handle this.";
-        done();
-      },
-      function(card, app, done){
-        app.worry(3);
-        var hid = card.userdata.hid;
-        var found = card.userdata.found;
-        if(Math.random() > (0.5 + found / (found + hid))) {
-          card.userdata.hid++;
-          card.name = "... Or Maybe It Hasn't"
-          card.description = "You'll never believe it's gone.";
-          card.resolved = true;
-          card.isFinished = true;
-        };
-        done();
-      }
-    ],
-  }));
+var playCards = [];
 
-  cards.push(new Card({
-    name: "Health Pack",
-    description: "You find a white box.",
-    userdata: {},
-    effects: [
-      function (card, app, done){
-        app.heal(Math.ceil(Math.random() * 10));
-        card.description = "You feel a little better.";
-        card.resolved = true;
-        done();
-      },
-    ],
-  }));
-
-  cards.push(new Card({
-    name: "Two Doors",
-    description: "There are two doors in front of you.",
-    userdata: {},
-    effects: [
-      function (card, app, done){
-        card.description = "You take the left.";
-        card.resolved = true;
-        done();
-      },
-    ],
-  }));
-  return cards;
-}
-
-
-function Card({name, description, effects, userdata}){
-  this.effectsIndex = 0;
-  this.name = name;
-  this.description = description;
-  this.initialText = description;
-  this.effects = effects;
-  this.resolved = false;
-  this.userdata = userdata;
-}
-Card.prototype = {
-  reset(){
-    this.effectsIndex = 0;
-    this.initialText = 0;
-    this.resolved = false;
-  },
-  playNextEffect: function(app, callback){
-    var self = this;
-    var card = this;
-    var currentEffect = card.effects[self.effectsIndex];
-
-    currentEffect(card, app, callback);
-    card.effectsIndex++;
-    if(card.effectsIndex == card.effects.length){
-      card.resolved = true;
-    }
-  },
-  getPlayable: function(){
-    return new Card({
-      name: this.name,
-      description: this.description,
-      effects: this.effects,
-      userdata: this.userdata
-    })
-  }
-}
-
-cards = MakeCards();
-
-playCards = [];
-
-for (var i = 0; i < 100; i++){
-  var newCard = cards[i % cards.length].getPlayable();
+let keys = Object.keys(baseCards);
+for (var i = 0; i < 10; i++){
+  let key = keys[i% keys.length];
+  let newCard = Object.assign({}, baseCards[key]);
   playCards.push(newCard);
 }
 
@@ -119,8 +24,8 @@ const store = new Vuex.Store({
     calm: (state, amount) => state.anxiety -= amount,
 
     setConfidence: (state, amount) => state.confidence = amount,
-    succeed: (state, amount) => confidence.anxiety += amount,
-    fail: (state, amount) => confidence.anxiety -= amount,
+    succeed: (state, amount) => state.confidence.anxiety += amount,
+    fail: (state, amount) => state.confidence.anxiety -= amount,
     setVar: (state, key, value) => state.varls[key] = value,
   },
 })
@@ -152,9 +57,11 @@ var app = new Vue({
   data: {
     currentCard: null,
     state: null,
+    display_message: "",
     transitionState: null,
     cards: playCards,
-    discard: cards,
+    discard: [],
+    resolved: false,
   },
   computed: {
     health: () => store.state.health,
@@ -167,10 +74,13 @@ var app = new Vue({
         this.discard.push(this.cards.shift());
       }
       this.currentCard = this.cards[0];
-
+      this.resolved = false;
+      this.currentCard.effects(this.currentCard, this).then(() => this.resolved = true);
       this.changeState(playCardState);
     },
     changeState: function(new_state, callback){
+      console.log(`The state is changing, the new state is ${new_state.name}`);
+
       var self = this;
       if(self.transitionState){
         throw "Transitioning while already in transition unsupported.";
@@ -192,21 +102,48 @@ var app = new Vue({
         finishLeaveCallback();
       }
     },
-    cardEffectStep: function(){
-      var card = this.currentCard;
-      if(!card.resolved){
-        this.midStep = true;
-        card.playNextEffect(this, () => this.midStep = false);
-      }
-    },
     damage: amount => store.commit('damage', amount),
     heal: amount => store.commit('heal', amount),
     worry: amount => store.commit('worry', amount),
     succeed: amount => store.commit('succeed', amount),
     fail: amount => store.commit('fail', amount),
-    setVar: (key, value) => store.commit('setVar', key, value)
+    setVar: (key, value) => store.commit('setVar', key, value),
+    
+    //UI
+    // This method is called by the card.
+    message: function(message) {
+      this.display_message += message;
+    },
+    // This method is called by the user (by pressing "Next").    
+    userConfirm: function() {
+      this.resolve();
+    },
+    // This method is called by the card.
+    confirm: function(message){
+      this.display_message += message;
+      let resolve_exported;
+      let reject_exported;
+      let promise = new Promise((resolve, reject) => { 
+        resolve_exported = resolve;
+        reject_exported = reject;
+      });
+      this.resolve = resolve_exported;
+      return promise;
+    },
+    // This method is called by the card.
+    effect: function(which_effect){
+      // TODO: dispatch on which_effect to do different things      
+      let resolve_exported;
+      let reject_exported;
+      let promise = new Promise((resolve, reject) => { 
+        resolve_exported = resolve;
+        reject_exported = reject;
+      });
+      this.resolve = resolve_exported;
+      return promise;
+    },
+    
   }
-
 });
 
 app.changeState(idleState);
