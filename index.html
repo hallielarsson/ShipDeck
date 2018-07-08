@@ -11,15 +11,19 @@
       <div class="current-card" v-if="currentCard">
         <div class="name">{{ currentCard.name }}</div>
         <div class="description">{{ currentCard.description }}</div>
-        <button v-if="!resolved" class="next" @click="userConfirm()">Next</button>
-
+        <div v-if="!resolved">
+          <div class="confirm-message">
+            {{ display_message }}
+          </div>
+          <button class="next" @click="userAgree()">Agree</button>
+          <button class="next" @click="userDecline()">Decline</button>
+        </div>
       </div>
-      <div class="confirm-message">
-        {{ display_message }}
-      </div>
-      <button v-if="!currentCard || resolved" @click="playCard()">Play</button>
+      <button @click="playCard()">Play</button>
       <div class="player-info">
-        Health: {{ health }} Anxiety: {{ anxiety }}
+        POPULATION IS NOW {{ population }}
+        THE CITY NOW OWNS {{ acres }} ACRES
+        YOU NOW HAVE {{ siloed }} BUSHELS IN STORE.
       </div>
     </div>
     <script src="scripts/defineCards.js"></script>
