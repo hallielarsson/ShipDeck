@@ -7,27 +7,41 @@ for (var i = 0; i < 10; i++){
   playCards.push(newCard);
 }
 
+function d(sides) {
+  return Math.floor(Math.random() * sides) + 1;
+}
+
+function coinflip() {
+  return Math.random() < 0.5;
+}
+
 const store = new Vuex.Store({
   state: {
-    health: 100,
-    anxiety: 0,
-    confidence: 100,
-    vars: {},
+    population: 100,
+    acres: 1000,
+    siloed: 2800,
+    total_starved: 0,
   },
   mutations: {
-    setHealth: (state, amount) => state.health = amount,
-    damage: (state, amount) => state.health -= amount,
-    heal: (state, amount) => state.health += amount,
-
-    setAnxiety: (state, amount) => state.anxiety = amount,
-    worry: (state, amount) => state.anxiety += amount,
-    calm: (state, amount) => state.anxiety -= amount,
-
-    setConfidence: (state, amount) => state.confidence = amount,
-    succeed: (state, amount) => state.confidence.anxiety += amount,
-    fail: (state, amount) => state.confidence.anxiety -= amount,
-    setVar: (state, key, value) => state.varls[key] = value,
-  },
+    // Buy land with grain.
+    buyLand: (state, payload) => { state.siloed -= payload.acres * payload.price_bushels_per_acre; state.acres += payload.acres; },
+    // Sell land for grain.
+    sellLand: (state, payload) => { state.acres -= payload.acres; state.siloed += payload.acres * payload.price_bushels_per_acre; },
+    // Plant acres of land with seed.
+    plant: (state, acres) => state.siloed -= acres / 2,
+    // Harvest 1d6 times the number of acres planted.
+    harvest: (state, acres) => state.siloed += acres * d(6),
+    // Rats eat (1d6)th of the siloed grain.
+    rats: (state) => state.siloed -= state.siloed / d(6),
+    // Population increases.
+    increase: (state) => state.population += state.population * d(6) * 0.01,
+    // Plague kills half of the people.
+    plague: (state) => state.population *= 0.5,
+    // Feed bushels of grain to the people.
+    feed: (state, bushels) => state.siloed -= bushels,
+    // Starvation, due to feeding bushels of grain; each bushel eaten feeds 20 people for 1 year.
+    starve: (state, bushels) => { if (state.population / 20 < bushels) { state.total_starved += state.population - bushels * 20; state.population = bushels * 20; } }
+  }
 })
 
 var idleState = {
@@ -64,18 +78,26 @@ var app = new Vue({
     resolved: false,
   },
   computed: {
-    health: () => store.state.health,
-    anxiety: () => store.state.anxiety,
-    confidence: () => store.state.confidence,
+    population: () => store.state.population,
+    acres: () => store.state.acres,
+    siloed: () => store.state.siloed,
+    total_starved: () => store.state.total_starved,
   },
   methods: {
     playCard: function(card){
-      if(this.currentCard && this.currentCard.resolved) {
+      //if(this.currentCard && this.currentCard.resolved) {
+        console.log("advancing to the next card");
         this.discard.push(this.cards.shift());
-      }
+      //} else {
+      //  console.log("not advancing to the next card");
+      //}
       this.currentCard = this.cards[0];
-      this.resolved = false;
-      this.currentCard.effects(this.currentCard, this).then(() => this.resolved = true);
+      this.currentCard.resolved = false;
+      this.currentCard.effects(this.currentCard, this).then(() => {
+        console.log("effects are over");
+        console.log(this);
+        this.currentCard.resolved = true;
+      });
       this.changeState(playCardState);
     },
     changeState: function(new_state, callback){
@@ -102,12 +124,16 @@ var app = new Vue({
         finishLeaveCallback();
       }
     },
-    damage: amount => store.commit('damage', amount),
-    heal: amount => store.commit('heal', amount),
-    worry: amount => store.commit('worry', amount),
-    succeed: amount => store.commit('succeed', amount),
-    fail: amount => store.commit('fail', amount),
-    setVar: (key, value) => store.commit('setVar', key, value),
+
+    buyLand: (acres, price_bushels_per_acre) => store.commit('buyLand', {acres: acres, price_bushels_per_acre: price_bushels_per_acre}),
+    sellLand: (acres, price_bushels_per_acre) => store.commit('sellLand', {acres: acres, price_bushels_per_acre: price_bushels_per_acre}),
+    plant: (acres) => store.commit('plant', acres),
+    harvest: (acres) => store.commit('harvest', acres),
+    rats: () => store.commit('rats'),
+    increase: () => store.commit('increase'),
+    plague: () => store.commit('plague'),
+    feed: (bushels) => store.commit('feed', bushels),
+    starve: (bushels) => store.commit('starve', bushels),
     
     //UI
     // This method is called by the card.
@@ -118,9 +144,17 @@ var app = new Vue({
     userConfirm: function() {
       this.resolve();
     },
+    // This method is called by the user (by pressing "Agree").    
+    userAgree: function() {
+      this.resolve(true);
+    },
+    // This method is called by the user (by pressing "Decline").    
+    userDecline: function() {
+      this.resolve(false);
+    },
     // This method is called by the card.
     confirm: function(message){
-      this.display_message += message;
+      this.display_message = message;
       let resolve_exported;
       let reject_exported;
       let promise = new Promise((resolve, reject) => { 
